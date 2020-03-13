@@ -31,3 +31,23 @@ with open("mtg_data.csv", "w") as writer:
         top_comment = get_highest_valid_comment(submission)
         if not title is None and not top_comment is None:
             csv_writer.writerow([title, top_comment])
+    for submission in tqdm.tqdm(subreddit.top(limit=maximum_posts), total=maximum_posts):
+        title = get_valid_title(submission)
+        top_comment = get_highest_valid_comment(submission)
+        if not title is None and not top_comment is None:
+            csv_writer.writerow([title, top_comment])
+    for submission in tqdm.tqdm(subreddit.new(limit=maximum_posts), total=maximum_posts):
+        title = get_valid_title(submission)
+        top_comment = get_highest_valid_comment(submission)
+        if not title is None and not top_comment is None:
+            csv_writer.writerow([title, top_comment])
+    for submission in tqdm.tqdm(subreddit.random_rising(limit=maximum_posts), total=maximum_posts):
+        title = get_valid_title(submission)
+        top_comment = get_highest_valid_comment(submission)
+        if not title is None and not top_comment is None:
+            csv_writer.writerow([title, top_comment])
+    for submission in tqdm.tqdm(subreddit.rising(limit=maximum_posts), total=maximum_posts):
+        title = get_valid_title(submission)
+        top_comment = get_highest_valid_comment(submission)
+        if not title is None and not top_comment is None:
+            csv_writer.writerow([title, top_comment])
