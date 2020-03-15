@@ -3,7 +3,6 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import os
-import csv
 import re
 import numpy as np
 import matplotlib.pyplot as plt
@@ -40,6 +39,9 @@ def load_conversations():
 questions, answers = load_conversations()
 
 
+print('Sample question: {}'.format(questions[20]))
+print('Sample answer: {}'.format(answers[20]))
+
 # Build tokenizer using tfds for both questions and answers
 tokenizer = tfds.features.text.SubwordTextEncoder.build_from_corpus(
     questions + answers, target_vocab_size=2**13)
@@ -49,6 +51,8 @@ START_TOKEN, END_TOKEN = [tokenizer.vocab_size], [tokenizer.vocab_size + 1]
 
 # Vocabulary size plus start and end token
 VOCAB_SIZE = tokenizer.vocab_size + 2
+
+print('Tokenized sample question: {}'.format(tokenizer.encode(questions[20])))
 
 # Maximum sentence length
 MAX_LENGTH = 40
@@ -77,6 +81,9 @@ def tokenize_and_filter(inputs, outputs):
 
 questions, answers = tokenize_and_filter(questions, answers)
 
+print('Vocab size: {}'.format(VOCAB_SIZE))
+print('Number of samples: {}'.format(len(questions)))
+
 BATCH_SIZE = 64
 BUFFER_SIZE = 20000
 
@@ -97,6 +104,7 @@ dataset = dataset.shuffle(BUFFER_SIZE)
 dataset = dataset.batch(BATCH_SIZE)
 dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
+print(dataset)
 
 def scaled_dot_product_attention(query, key, value, mask):
   """Calculate the attention weights. """
@@ -174,11 +182,15 @@ def create_padding_mask(x):
   # (batch_size, 1, 1, sequence length)
   return mask[:, tf.newaxis, tf.newaxis, :]
 
+print(create_padding_mask(tf.constant([[1, 2, 0, 3, 0], [0, 0, 0, 4, 5]])))
+
 def create_look_ahead_mask(x):
   seq_len = tf.shape(x)[1]
   look_ahead_mask = 1 - tf.linalg.band_part(tf.ones((seq_len, seq_len)), -1, 0)
   padding_mask = create_padding_mask(x)
   return tf.maximum(look_ahead_mask, padding_mask)
+
+print(create_look_ahead_mask(tf.constant([[1, 2, 0, 4, 5]])))
 
 class PositionalEncoding(tf.keras.layers.Layer):
 
@@ -209,6 +221,13 @@ class PositionalEncoding(tf.keras.layers.Layer):
 
 
 sample_pos_encoding = PositionalEncoding(50, 512)
+
+plt.pcolormesh(sample_pos_encoding.pos_encoding.numpy()[0], cmap='RdBu')
+plt.xlabel('Depth')
+plt.xlim((0, 512))
+plt.ylabel('Position')
+plt.colorbar()
+plt.show()
 
 def encoder_layer(units, d_model, num_heads, dropout, name="encoder_layer"):
   inputs = tf.keras.Input(shape=(None, d_model), name="inputs")
@@ -241,6 +260,9 @@ sample_encoder_layer = encoder_layer(
     num_heads=4,
     dropout=0.3,
     name="sample_encoder_layer")
+
+tf.keras.utils.plot_model(
+    sample_encoder_layer, to_file='encoder_layer.png', show_shapes=True)
 
 def encoder(vocab_size,
             num_layers,
@@ -278,6 +300,9 @@ sample_encoder = encoder(
     num_heads=4,
     dropout=0.3,
     name="sample_encoder")
+
+tf.keras.utils.plot_model(
+   sample_encoder, to_file='encoder.png', show_shapes=True)
 
 
 def decoder_layer(units, d_model, num_heads, dropout, name="decoder_layer"):
@@ -326,6 +351,9 @@ sample_decoder_layer = decoder_layer(
     dropout=0.3,
     name="sample_decoder_layer")
 
+tf.keras.utils.plot_model(
+    sample_decoder_layer, to_file='decoder_layer.png', show_shapes=True)
+
 def decoder(vocab_size,
             num_layers,
             units,
@@ -368,6 +396,8 @@ sample_decoder = decoder(
     dropout=0.3,
     name="sample_decoder")
 
+tf.keras.utils.plot_model(
+    sample_decoder, to_file='decoder.png', show_shapes=True)
 
 def transformer(vocab_size,
                 num_layers,
@@ -424,6 +454,8 @@ sample_transformer = transformer(
     dropout=0.3,
     name="sample_transformer")
 
+tf.keras.utils.plot_model(
+    sample_transformer, to_file='transformer.png', show_shapes=True)
 
 tf.keras.backend.clear_session()
 
@@ -472,6 +504,10 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 
 sample_learning_rate = CustomSchedule(d_model=128)
 
+plt.plot(sample_learning_rate(tf.range(200000, dtype=tf.float32)))
+plt.ylabel("Learning Rate")
+plt.xlabel("Train Step")
+
 learning_rate = CustomSchedule(D_MODEL)
 
 optimizer = tf.keras.optimizers.Adam(
@@ -484,7 +520,9 @@ def accuracy(y_true, y_pred):
 
 model.compile(optimizer=optimizer, loss=loss_function, metrics=[accuracy])
 
-model.load_weights("transformer/mtg-checkpoints/mtg_checkpoint")
+EPOCHS = 50
+
+model.fit(dataset, epochs=EPOCHS)
 
 
 def evaluate(sentence):
@@ -519,9 +557,20 @@ def predict(sentence):
   predicted_sentence = tokenizer.decode(
       [i for i in prediction if i < tokenizer.vocab_size])
 
+  print('Input: {}'.format(sentence))
+  print('Output: {}'.format(predicted_sentence))
+
   return predicted_sentence
 
 
-while True:
-    message_in = input("Input: ")
-    print(f"Output: {predict(message_in)}")
+output = predict("My favourite card is counterspell")
+
+output = predict("What is your favourite card?")
+
+# feed the model with its previous output
+sentence = output
+for _ in range(5):
+  sentence = predict(sentence)
+  print('')
+
+model.save_weights("mtg-checkpoints/mtg_checkpoint")
