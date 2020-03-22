@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 import tensorflow_datasets as tfds
-import os
+import os, sys
 import csv
 import re
 import numpy as np
@@ -76,10 +76,10 @@ class MtgTransformer:
 
         self.model.compile(optimizer=self.optimizer, loss=self.loss_function, metrics=[self.accuracy])
 
-        self.model.load_weights("transformer/mtg-checkpoints/mtg_checkpoint")
-
-
-
+        self.model.load_weights(self.get_path("mtg-checkpoints/mtg_checkpoint"))
+    
+    def get_path(self, filename):
+        return f"{os.path.dirname(__file__)}{os.path.sep}{filename}"
 
     def preprocess_sentence(self, sentence):
         sentence = sentence.lower().strip()
@@ -97,7 +97,7 @@ class MtgTransformer:
     def load_conversations(self):
         inputs = []
         outputs = []
-        with open("download/mtg_data.csv") as reader:
+        with open(self.get_path("../download/mtg_data.csv")) as reader:
             csv_reader = csv.reader(reader, delimiter="|")
             next(csv_reader, None)
             for row in csv_reader:
