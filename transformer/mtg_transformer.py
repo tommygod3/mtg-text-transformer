@@ -97,7 +97,7 @@ class MtgTransformer:
     def load_conversations(self):
         inputs = []
         outputs = []
-        with open(self.get_path("../download/mtg_data.csv")) as reader:
+        with open(self.get_path("../download/mtg_data.csv"), encoding="utf8") as reader:
             csv_reader = csv.reader(reader, delimiter="|")
             next(csv_reader, None)
             for row in csv_reader:
